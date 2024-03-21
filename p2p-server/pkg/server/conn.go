@@ -11,10 +11,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//发送心跳包的间隔时间 5秒
+// 发送心跳包的间隔时间 5秒
 const pingPeriod = 5 * time.Second
 
-//定义WebSocket连接
+// 定义WebSocket连接
 type WebSocketConn struct {
 	//事件派发器
 	emission.Emitter
@@ -26,7 +26,7 @@ type WebSocketConn struct {
 	closed bool
 }
 
-//实例化WebSocket连接
+// 实例化WebSocket连接
 func NewWebSocketConn(socket *websocket.Conn) *WebSocketConn {
 	//定义连接变量
 	var conn WebSocketConn
@@ -52,7 +52,7 @@ func NewWebSocketConn(socket *websocket.Conn) *WebSocketConn {
 	return &conn
 }
 
-//读取消息
+// 读取消息
 func (conn *WebSocketConn) ReadMessage() {
 	//创建一个读取消息的通道
 	in := make(chan []byte)
@@ -94,7 +94,7 @@ func (conn *WebSocketConn) ReadMessage() {
 	//循环接收通道数据
 	for {
 		select {
-		case _ = <-pingTicker.C:
+		case <-pingTicker.C:
 			util.Infof("发送心跳包...")
 			//发送空包
 			heartPackage := map[string]interface{}{
@@ -123,7 +123,7 @@ func (conn *WebSocketConn) ReadMessage() {
 	}
 }
 
-//发送消息
+// 发送消息
 func (conn *WebSocketConn) Send(message string) error {
 	util.Infof("发送数据: %s", message)
 	//连接加锁
@@ -138,19 +138,19 @@ func (conn *WebSocketConn) Send(message string) error {
 	return conn.socket.WriteMessage(websocket.TextMessage, []byte(message))
 }
 
-//关闭WebSocket连接
+// 关闭WebSocket连接
 func (conn *WebSocketConn) Close() {
 	//连接加锁
 	conn.mutex.Lock()
 	//延迟执行连接解锁
 	defer conn.mutex.Unlock()
-	if conn.closed == false {
-		util.Infof("关闭WebSocket连接 : ", conn)
+	if !conn.closed {
+		util.Infof("关闭WebSocket连接 :%v", conn)
 		//关闭WebSocket连接
 		conn.socket.Close()
 		//设置关闭状态为true
 		conn.closed = true
 	} else {
-		util.Warnf("连接已关闭 :", conn)
+		util.Warnf("连接已关闭 :%v", conn)
 	}
 }
