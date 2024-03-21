@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//服务配置
+// 服务配置
 type P2PServerConfig struct {
 	//IP
 	Host string
@@ -24,7 +24,7 @@ type P2PServerConfig struct {
 	WebSocketPath string
 }
 
-//默认WebSocket服务配置
+// 默认WebSocket服务配置
 func DefaultConfig() P2PServerConfig {
 	return P2PServerConfig{
 		//IP
@@ -38,7 +38,7 @@ func DefaultConfig() P2PServerConfig {
 	}
 }
 
-//P2P服务
+// P2P服务
 type P2PServer struct {
 	//WebSocket绑定函数,由信令服务处理
 	handleWebSocket func(ws *WebSocketConn, request *http.Request)
@@ -46,7 +46,7 @@ type P2PServer struct {
 	upgrader websocket.Upgrader
 }
 
-//实例化一个P2P服务
+// 实例化一个P2P服务
 func NewP2PServer(wsHandler func(ws *WebSocketConn, request *http.Request)) *P2PServer {
 	//创建P2PServer对象
 	var server = &P2PServer{
@@ -64,7 +64,7 @@ func NewP2PServer(wsHandler func(ws *WebSocketConn, request *http.Request)) *P2P
 	return server
 }
 
-//WebSocket请求处理
+// WebSocket请求处理
 func (server *P2PServer) handleWebSocketRequest(writer http.ResponseWriter, request *http.Request) {
 	//返回头
 	responseHeader := http.Header{}
@@ -83,7 +83,7 @@ func (server *P2PServer) handleWebSocketRequest(writer http.ResponseWriter, requ
 	wsTransport.ReadMessage()
 }
 
-//绑定
+// 绑定
 func (server *P2PServer) Bind(cfg P2PServerConfig) {
 	//WebSocket回调函数
 	http.HandleFunc(cfg.WebSocketPath, server.handleWebSocketRequest)
