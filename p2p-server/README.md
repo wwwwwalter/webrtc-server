@@ -4,3 +4,6 @@ go mod tidy
 go run main.go
 or
 go build p2p-server
+
+
+go build p2p-server && ./p2p-server 
