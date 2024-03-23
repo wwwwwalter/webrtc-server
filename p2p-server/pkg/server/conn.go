@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"p2p-server/pkg/util"
 	"sync"
@@ -40,12 +41,14 @@ func NewWebSocketConn(socket *websocket.Conn) *WebSocketConn {
 	conn.closed = false
 	//socket连接关闭回调函数
 	conn.socket.SetCloseHandler(func(code int, text string) error {
+		fmt.Println("*********1close callback*********")
 		//输出日志
 		util.Warnf("%s [%d]", text, code)
 		//派发关闭事件
 		conn.Emit("close", code, text)
 		//设置为关闭状态
 		conn.closed = true
+		fmt.Println("*********2close callback*********")
 		return nil
 	})
 	//返回连接
@@ -78,7 +81,7 @@ func (conn *WebSocketConn) ReadMessage() {
 				} else {
 					//读写错误
 					if c, k := err.(*net.OpError); k {
-						//派发关闭事件
+						// 派发关闭事件
 						conn.Emit("close", 1008, c.Error())
 					}
 				}

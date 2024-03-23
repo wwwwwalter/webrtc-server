@@ -9,20 +9,21 @@ import (
 
 const (
 	JoinRoom       = "joinRoom"       //加入房间
+	QuitRoom       = "quitRoom"       //自己退出房间
 	Offer          = "offer"          //Offer消息
 	Answer         = "answer"         //Answer消息
 	Candidate      = "candidate"      //Candidate消息
 	HangUp         = "hangUp"         //挂断
-	LeaveRoom      = "leaveRoom"      //离开房间
+	LeaveRoom      = "leaveRoom"      //别人离开房间
 	UpdateUserList = "updateUserList" //更新房间用户列表
 )
 
-//定义房间
+// 定义房间
 type RoomManager struct {
 	rooms map[string]*Room
 }
 
-//实例化房间管理对象
+// 实例化房间管理对象
 func NewRoomManager() *RoomManager {
 	var roomManager = &RoomManager{
 		rooms: make(map[string]*Room),
@@ -30,7 +31,7 @@ func NewRoomManager() *RoomManager {
 	return roomManager
 }
 
-//定义房间
+// 定义房间
 type Room struct {
 	//所有用户
 	users map[string]User
@@ -39,7 +40,7 @@ type Room struct {
 	ID       string
 }
 
-//实例化房间对象
+// 实例化房间对象
 func NewRoom(id string) *Room {
 	var room = &Room{
 		users:    make(map[string]User),
@@ -49,23 +50,23 @@ func NewRoom(id string) *Room {
 	return room
 }
 
-//获取房间
+// 获取房间
 func (roomManager *RoomManager) getRoom(id string) *Room {
 	return roomManager.rooms[id]
 }
 
-//创建房间
+// 创建房间
 func (roomManager *RoomManager) createRoom(id string) *Room {
 	roomManager.rooms[id] = NewRoom(id)
 	return roomManager.rooms[id]
 }
 
-//删除房间
+// 删除房间
 func (roomManager *RoomManager) deleteRoom(id string) {
 	delete(roomManager.rooms, id)
 }
 
-//WebSocket消息处理
+// WebSocket消息处理
 func (roomManager *RoomManager) HandleNewWebSocket(conn *server.WebSocketConn, request *http.Request) {
 	util.Infof("On Open %v", request)
 	//监听消息事件
@@ -102,7 +103,6 @@ func (roomManager *RoomManager) HandleNewWebSocket(conn *server.WebSocketConn, r
 		switch request["type"] {
 		case JoinRoom:
 			onJoinRoom(conn, data, room, roomManager)
-			break
 		//提议Offer消息
 		case Offer:
 			//直接执行下一个case并转发消息
@@ -114,16 +114,16 @@ func (roomManager *RoomManager) HandleNewWebSocket(conn *server.WebSocketConn, r
 		//网络信息Candidate
 		case Candidate:
 			onCandidate(conn, data, room, roomManager, request)
-			break
 		//挂断消息
 		case HangUp:
 			onHangUp(conn, data, room, roomManager, request)
-			break
+		//主动退出房间
+		case QuitRoom:
+			onQuitRoom(conn, data, room, roomManager, request)
 		default:
 			{
 				util.Warnf("未知的请求 %v", request)
 			}
-			break
 		}
 	})
 
@@ -150,7 +150,7 @@ func onJoinRoom(conn *server.WebSocketConn, data map[string]interface{}, room *R
 	roomManager.notifyUsersUpdate(conn, room.users)
 }
 
-//offer/answer/candidate消息处理
+// offer/answer/candidate消息处理
 func onCandidate(conn *server.WebSocketConn, data map[string]interface{}, room *Room, roomManager *RoomManager, request map[string]interface{}) {
 	//读取目标to属性值
 	to := data["to"].(string)
@@ -213,12 +213,39 @@ func onHangUp(conn *server.WebSocketConn, data map[string]interface{}, room *Roo
 	}
 }
 
+// 主动退出房间断开连接处理
+func onQuitRoom(conn *server.WebSocketConn, data map[string]interface{}, room *Room, roomManager *RoomManager, request map[string]interface{}) {
+	userId := data["from"].(string)
+	//根据Id查找User
+	if user, ok := room.users[userId]; !ok {
+		util.Warnf("用户 [" + userId + "] 没有找到")
+		return
+	} else {
+		//退出信息
+		quitRoom := map[string]interface{}{
+			//消息类型
+			"type": QuitRoom,
+			//数据
+			"data": map[string]interface{}{},
+		}
+		// 应答退出请求
+		user.conn.Send(util.Marshal(quitRoom))
+
+		//根据Id删除User
+		delete(room.users, userId)
+		util.Infof("退出房间的用户roomId %v userId %v", room.ID, userId)
+	}
+	//通知所有的User更新数据
+	roomManager.notifyUsersUpdate(conn, roomManager.getRoom(room.ID).users)
+}
+
+// 意外断连处理
 func onClose(conn *server.WebSocketConn, roomManager *RoomManager) {
 	util.Infof("连接关闭 %v", conn)
 	var userId string = ""
 	var roomId string = ""
 
-	//遍历所有的房间找到退出的用户
+	//意外断联遍历所有的房间找到退出的用户
 	for _, room := range roomManager.rooms {
 		for _, user := range room.users {
 			//判断是不是当前连接对象
@@ -231,7 +258,7 @@ func onClose(conn *server.WebSocketConn, roomManager *RoomManager) {
 	}
 
 	if roomId == "" {
-		util.Errorf("没有查找到退出的房间及用户")
+		util.Errorf("没有查找到退出的房间及用户或者已经从房间中删除")
 		return
 	}
 
@@ -239,16 +266,17 @@ func onClose(conn *server.WebSocketConn, roomManager *RoomManager) {
 
 	//循环遍历所有的User
 	for _, user := range roomManager.getRoom(roomId).users {
-		//判断是不是当前连接对象
+		//遍历房间里的其他人
 		if user.conn != conn {
 			leave := map[string]interface{}{
 				"type": LeaveRoom,
 				"data": userId,
 			}
+			//发送离开房间信号
 			user.conn.Send(util.Marshal(leave))
 		}
 	}
-	util.Infof("删除User", userId)
+	util.Infof("删除User %v", userId)
 	//根据Id删除User
 	delete(roomManager.getRoom(roomId).users, userId)
 
@@ -256,7 +284,7 @@ func onClose(conn *server.WebSocketConn, roomManager *RoomManager) {
 	roomManager.notifyUsersUpdate(conn, roomManager.getRoom(roomId).users)
 }
 
-//通知所有的用户更新
+// 通知所有的用户更新
 func (roomManager *RoomManager) notifyUsersUpdate(conn *server.WebSocketConn, users map[string]User) {
 	//更新信息
 	infos := []UserInfo{}
