@@ -12,7 +12,7 @@ import (
 )
 
 // 发送心跳包的间隔时间 5秒
-const pingPeriod = 5 * time.Second
+const pingPeriod = 20 * time.Second
 
 // 定义WebSocket连接
 type WebSocketConn struct {
