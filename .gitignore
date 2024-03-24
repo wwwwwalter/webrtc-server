@@ -1,2 +1,4 @@
 p2p-server/p2p-server
 turn-server/turn-server
+p2p-server.log
+turn-server.log
