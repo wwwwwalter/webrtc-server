@@ -24,15 +24,17 @@ func main() {
 	if err != nil {
 		stunPort = 3478
 	}
-	//读取realm
+	//读取realm领域
 	realm := cfg.Section("turn").Key("realm").String()
 
+	//turnConfig
 	turnConfig := turn.DefaultConfig()
 	turnConfig.PublicIP = publicIP
 	turnConfig.Port = stunPort
 	turnConfig.Realm = realm
 	turn := turn.NewTurnServer(turnConfig)
 
+	//创建一个http服务
 	httpServer := server.NewHttpsServer(turn)
 
 	sslCert := cfg.Section("general").Key("cert").String()
@@ -44,6 +46,7 @@ func main() {
 		port = 9000
 	}
 
+	//httpConfig
 	config := server.DefaultConfig()
 	config.Host = bindAddress
 	config.Port = port

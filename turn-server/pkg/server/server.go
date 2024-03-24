@@ -44,6 +44,7 @@ type TurnCredentials struct {
 	Uris     []string `json:"uris"`
 }
 
+// json to string
 func Marshal(m map[string]interface{}) string {
 	if byt, err := json.Marshal(m); err != nil {
 		logger.Errorf(err.Error())
@@ -53,6 +54,7 @@ func Marshal(m map[string]interface{}) string {
 	}
 }
 
+// string to json
 func Unmarshal(str string) (map[string]interface{}, error) {
 	var data map[string]interface{}
 	if err := json.Unmarshal([]byte(str), &data); err != nil {
@@ -69,9 +71,11 @@ type HttpsServer struct {
 
 func NewHttpsServer(turn *turn.TurnServer) *HttpsServer {
 	var server = &HttpsServer{
+		//绑定turn对象
 		turn:      turn,
 		expresMap: util.NewExpiredMap(),
 	}
+	//给turn指定认证方法
 	server.turn.AuthHandler = server.authHandler
 	return server
 }
@@ -93,6 +97,7 @@ func (s HttpsServer) authHandler(username string, realm string, srcAddr net.Addr
 	return "", false
 }
 
+// TurnServer请求处理,根据用户名生成密码
 // HandleTurnServerCredentials .
 // https://tools.ietf.org/html/draft-uberti-behave-turn-rest-00
 func (s *HttpsServer) HandleTurnServerCredentials(writer http.ResponseWriter, request *http.Request) {
@@ -102,6 +107,7 @@ func (s *HttpsServer) HandleTurnServerCredentials(writer http.ResponseWriter, re
 	//解析请求参数
 	params, err := url.ParseQuery(request.URL.RawQuery)
 	if err != nil {
+		return
 	}
 	logger.Debugf("%v", params)
 	//获取service参数
@@ -116,17 +122,17 @@ func (s *HttpsServer) HandleTurnServerCredentials(writer http.ResponseWriter, re
 	timestamp := time.Now().Unix()
 	//时间戳:用户名 1587944830:flutter-webrtc
 	turnUsername := fmt.Sprintf("%d:%s", timestamp, username)
-	fmt.Println("turnUsername:::",turnUsername);
+	logger.Infof("turnUsername:::%v", turnUsername)
 
 	//hmac是密钥相关的哈希运算消息认证码
 	hmac := hmac.New(sha1.New, []byte(sharedKey))
 	//1587944058:flutter-webrtc 9V6nnqG+XYxtmngnzxIXeRCHQqk
 	hmac.Write([]byte(turnUsername))
-	fmt.Println("turnUsername:::",turnUsername);
+	logger.Infof("turnUsername:::%v", turnUsername)
 
 	//生成密码
 	turnPassword := base64.RawStdEncoding.EncodeToString(hmac.Sum(nil))
-	fmt.Println("turnPassword:::",turnPassword);
+	logger.Infof("turnPassword:::%v", turnPassword)
 	/*
 		{
 		     "username" : "12334939:mbzrxpgjys",

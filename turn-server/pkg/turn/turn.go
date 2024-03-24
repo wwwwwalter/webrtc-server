@@ -1,10 +1,11 @@
 package turn
 
 import (
-	"github.com/pion/turn/v2"
 	"net"
 	"strconv"
 	"turn-server/pkg/logger"
+
+	"github.com/pion/turn/v2"
 )
 
 type TurnServerConfig struct {
@@ -30,16 +31,20 @@ type TurnServer struct {
 
 func NewTurnServer(config TurnServerConfig) *TurnServer {
 	server := &TurnServer{
-		Config:      config,
+		//Config
+		Config: config,
+		//AuthHandler
 		AuthHandler: nil,
 	}
 	if len(config.PublicIP) == 0 {
 		logger.Panicf("'public-ip' is required")
 	}
+
 	udpListener, err := net.ListenPacket("udp4", "0.0.0.0:"+strconv.Itoa(config.Port))
 	if err != nil {
 		logger.Panicf("Failed to create TURN server listener: %s", err)
 	}
+	//updListner
 	server.udpListener = udpListener
 
 	turnServer, err := turn.NewServer(turn.ServerConfig{
@@ -47,8 +52,11 @@ func NewTurnServer(config TurnServerConfig) *TurnServer {
 		AuthHandler: server.HandleAuthenticate,
 		PacketConnConfigs: []turn.PacketConnConfig{
 			{
+				//数据包连接器
 				PacketConn: udpListener,
+				//创建静态中继地址
 				RelayAddressGenerator: &turn.RelayAddressGeneratorStatic{
+					//中继地址
 					RelayAddress: net.ParseIP(config.PublicIP),
 					Address:      "0.0.0.0",
 				},
@@ -58,6 +66,7 @@ func NewTurnServer(config TurnServerConfig) *TurnServer {
 	if err != nil {
 		logger.Panicf("%v", err)
 	}
+	//turnServer
 	server.turnServer = turnServer
 	return server
 }
